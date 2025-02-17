@@ -1,0 +1,45 @@
+import pandas as pd
+
+# Read the Excel file
+df = pd.read_excel('C:\\Users\\Lenovo\\Desktop\\x1.xlsx')
+
+# Store the extracted data
+extracted_data = []
+
+# Iterate through each column of data
+for column in df.columns[1:]:
+    # Set the initial state of the start flag
+    start_flag = False
+    start_index = None
+    
+    # Iterate through each row of data in the column
+    for index, value in enumerate(df[column]):
+        if start_flag:
+            # Current row is the end row, end flag is True
+            if value > 0:
+                end_date = df.iloc[index-1, 0]
+                end_flag = True
+                # Extract target numbers and perform statistical calculations
+                target_values = df[column][start_index:index].tolist()
+                count = len(target_values)
+                if count > 0:
+                    peak_value = min(target_values)
+                    sum_value = sum(target_values)
+                    average_value = sum_value / count
+                    extracted_data.append([start_date, end_date, count, peak_value, sum_value, average_value])
+                start_flag = False
+        elif value < -1:
+            # Current row is the start row, start flag is True
+            start_date = df.iloc[index, 0]
+            start_index = index
+            start_flag = True
+
+# Convert to DataFrame
+extracted_df = pd.DataFrame(extracted_data, columns=['Start Date', 'End Date', 'Count', 'Peak Value', 'Sum Value', 'Average Value'])
+
+# Generate a new Excel file
+extracted_df.to_excel('output.xlsx', index=False)
+print("Data extracted successfully.")
+
+# Output the extracted results
+print(extracted_df)
