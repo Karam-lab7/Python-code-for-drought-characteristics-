@@ -1,0 +1,97 @@
+#Step 1: Load Required Libraries
+
+library(SPEI)       # For calculating SPI and SPEI
+library(matrixStats) # For efficient matrix operations
+library(raster)      # For handling spatial raster data
+library(readxl)      # For reading Excel files
+library(trend)       # For Mann-Kendall trend analysis and Sen's slope test
+
+#Step 2: Set Working Directory and Load Data
+
+setwd("D:\\PhD\\Karam\\Drought")
+Rain <- read.csv("Prec.csv", header=T)  # Load precipitation data
+Rain <- Rain[2:nrow(Rain),2:ncol(Rain)] # Remove first row and column (headers)
+
+ET <- read.csv("ET.csv", header=T)      # Load evapotranspiration data
+ET <- ET[2:nrow(ET),2:ncol(ET)]         # Remove first row and column (headers)
+
+#Step 3: Compute Climatic Water Balance
+
+dat <- data.frame(Rain) - data.frame(ET)  # Compute water balance (Rain - ET)
+
+#Step 4: Calculate SPEI at Different Timescales
+
+s3 <- NULL; s6 <- NULL; s9 <- NULL; s12 <- NULL
+
+for(i in 1:ncol(dat)) {
+  s3  <- cbind(s3, spei(dat[,i], 3, distribution = 'log-Logistic')$fitted)
+  s6  <- cbind(s6, spei(dat[,i], 6, distribution = 'log-Logistic')$fitted)
+  s9  <- cbind(s9, spei(dat[,i], 9, distribution = 'log-Logistic')$fitted)
+  s12 <- cbind(s12, spei(dat[,i], 12, distribution = 'log-Logistic')$fitted)
+} 
+#Loop through each station (column) and calculate SPEI at 3-month, 6-month, 9-month, and 12-month scales.
+#The SPEI index is fitted using a log-logistic distribution.
+
+#Step 5: Save SPEI Results
+
+S3 <- cbind(Rain[2:nrow(Rain),1], s3)
+S6 <- cbind(Rain[2:nrow(Rain),1], s6)
+S9 <- cbind(Rain[2:nrow(Rain),1], s9)
+S12 <- cbind(Rain[2:nrow(Rain),1], s12)
+
+write.csv(S3, "SPEI_3Month.csv")
+write.csv(S6, "SPEI_6Month.csv")
+write.csv(S9, "SPEI_9Month.csv")
+write.csv(S12, "SPEI_12Month.csv")
+
+#Step 6: Calculate SPI at Different Timescales
+dat <- data.frame(Rain)
+s3 <- NULL; s6 <- NULL; s9 <- NULL; s12 <- NULL
+
+for (i in 1:ncol(dat)) {
+  s3 <- cbind(s3, spi(dat[, i], 3, distribution = 'Gamma')$fitted)
+  s6 <- cbind(s6, spi(dat[, i], 6, distribution = 'Gamma')$fitted)
+  s9 <- cbind(s9, spi(dat[, i], 9, distribution = 'Gamma')$fitted)
+  s12 <- cbind(s12, spi(dat[, i], 12, distribution = 'Gamma')$fitted)
+}
+
+#Step 7: Save SPI Results
+S3 <- cbind(Rain[2:nrow(Rain),1], s3)
+S6 <- cbind(Rain[2:nrow(Rain),1], s6)
+S9 <- cbind(Rain[2:nrow(Rain),1], s9)
+S12 <- cbind(Rain[2:nrow(Rain),1], s12)
+
+write.csv(S3, "SPI_3Month.csv")
+write.csv(S6, "SPI_6Month.csv")
+write.csv(S9, "SPI_9Month.csv")
+write.csv(S12, "SPI_12Month.csv")
+
+#Step 8: Conduct Mann-Kendall Trend Analysis on SPI
+setwd("D:\\PhD\\Karam\\Drought")
+ts_list <- lapply(1:700, function(i) SPI_3Month[[as.character(i)]])  # Extract time series
+
+mk_results <- data.frame(matrix(ncol=2, nrow=0))
+colnames(mk_results) <- c("Time_Series", "P_Value")
+
+for (i in 1:length(ts_list)) {
+  ts_name <- paste0("TS_", i)
+  ts <- ts_list[[i]]
+  mk_test <- mk.test(ts)  # Apply Mann-Kendall test
+  mk_results <- rbind(mk_results, c(ts_name, mk_test$p.value))
+}
+
+write.csv(mk_results, file="MK_test_results100.csv", row.names=FALSE)
+
+#Step 9: Perform Sen's Slope Test
+ss_results <- data.frame(matrix(ncol=2, nrow=0))
+colnames(ss_results) <- c("Time_Series", "ss_Value")
+
+for (i in 1:length(ts_list)) {
+  ts_name <- paste0("TS_", i)
+  ts <- ts_list[[i]]
+  ss_test <- sens.slope(ts)  # Apply Sen’s slope test
+  ss_results <- rbind(ss_results, c(ts_name, ss_test$estimates))
+}
+
+write.csv(ss_results, file="ss_test_results100.csv", row.names=FALSE)
+
